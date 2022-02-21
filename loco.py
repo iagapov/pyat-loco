@@ -1,8 +1,69 @@
 #! /usr/bin/env python
 import sys, time, os
-import sdds
+try:
+    import sdds
+    from elegant import *
+except:
+    print("Failed to import elegant utils; elegant engine will not work properly")
 from pylab import *
-from elegant import *
+
+try:
+    import at
+    from at import atpass
+    from at import elements
+except:
+    print("Failed to import AT;  engine will not work")
+
+
+
+class Loco:
+    def __init__(self,engine):
+        if engine == 'elegant':
+            self.exec = '/Users/ia/Products/elegant/darwin-x86/elegant'
+            self.engine = 'elegant'
+            self.verbose = True
+        if engine == 'at':
+            self.exec = None
+            self.engine = 'at'
+            self.verbose = True
+
+
+    def runCommand(self,command):
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if self.verbose:
+            for line in process.stdout:
+                print(line.decode('UTF-8'))
+        process.wait()
+        
+    def prepareTwiss(self):
+        if self.engine == 'elegant':
+            command = self.exec+' twiss.ele -macro=lattice=fodo'
+            self.runCommand(command)
+            self.Cx = getOrm(fname='data/twiss.hrm')
+            self.Cy = getOrm(fname='data/twiss.vrm')
+        if self.engine == 'at':
+            print(f"preparing twiss...")
+            self.opt = at.linopt(self.lattice,refpts=np.arange(1,len(self.lattice)),get_chrom=True)
+            tune  = self.opt[1]
+            chrom = self.opt[2]
+            tws = self.opt[3] # optics functions
+            print(f"Tunes={tune}")
+            print(f"Chrom={chrom}")
+            print(f"calculating ORM...")
+    
+    def simulateMachine(self): # simulated errors, compute twiss etc.
+        if self.engine == 'elegant':
+            command = self.exec+' perturb.ele -macro=lattice=fodo'
+            self.runCommand(command)
+            
+    def measureOrm(self,kickX, kickY, mode):
+
+        for corName in self.corNames:
+            if self.verbose: print('measuring orm:',corName)
+            command = self.exec + ' measure_orm_x.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickX)
+            self.runCommand(command)
+            command = self.exec + ' measure_orm_y.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickY)
+            self.runCommand(command)
 
 # orbit respoonse matrix
 class ORM:
