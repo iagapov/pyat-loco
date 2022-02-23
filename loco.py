@@ -34,22 +34,27 @@ class Loco:
             for line in process.stdout:
                 print(line.decode('UTF-8'))
         process.wait()
-        
+
     def prepareTwiss(self):
         if self.engine == 'elegant':
-            command = self.exec+' twiss.ele -macro=lattice=fodo'
+            command = self.exec + ' twiss.ele -macro=lattice=fodo'
             self.runCommand(command)
             self.Cx = getOrm(fname='data/twiss.hrm')
             self.Cy = getOrm(fname='data/twiss.vrm')
+
         if self.engine == 'at':
-            print(f"preparing twiss...")
-            self.opt = at.linopt(self.lattice,refpts=np.arange(1,len(self.lattice)),get_chrom=True)
-            tune  = self.opt[1]
+            print("preparing twiss new..")
+            self.opt = at.linopt(self.lattice, refpts=np.arange(1, len(self.lattice)), get_chrom=True)
+            # print(lindata.dtype.names)
+            tune = self.opt[1]
             chrom = self.opt[2]
-            tws = self.opt[3] # optics functions
+            tws = self.opt[3]  # optics functions
             print(f"Tunes={tune}")
             print(f"Chrom={chrom}")
-            print(f"calculating ORM...")
+            print(f"calculating ORM new...")
+            self.Cx = getOrm_AT_x(self)
+            self.Cy = getOrm_AT_y(self)
+            print("finish ORM")
     
     def simulateMachine(self): # simulated errors, compute twiss etc.
         if self.engine == 'elegant':
@@ -233,6 +238,70 @@ def getOrm(fname):
         for j in range(n_bpm):
             R[i,j] = fi.columnData[i+2][ipage][j]
     return R
+
+
+
+
+def getOrm_AT_x(self):
+    #from pylab import *
+
+    cx = []
+    for j in range(len(self.correctors_indexes)):
+
+        self.lattice[self.correctors_indexes[j]].KickAngle = [self.dkick, 0.00]
+        #self.opt = at.linopt(self.lattice, refpts=self.BPM_indexes), get_chrom=True)
+        #tune = self.opt[1]
+        #chrom = self.opt[2]
+        #tws = self.opt[3]  # optics functions
+
+        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.BPM_indexes)
+        s_pos = lindata['s_pos']
+        closed_orbit = lindata['closed_orbit']
+        closed_orbitx = lindata['closed_orbit'][:, 0]
+        closed_orbity = lindata['closed_orbit'][:, 1]
+
+
+        #self.lattice[self.correctors_indexes[j]].KickAngle = [0, 0.00]
+        cx.append(closed_orbitx)
+
+    Cx = np.squeeze(cx) / self.dkick
+     #Cx = cx
+    return Cx
+
+def getOrm_AT_y(self):
+    #from pylab import *
+    cy = []
+    for j in range(len(self.correctors_indexes)):
+
+        # print('+')
+        self.lattice[self.correctors_indexes[j]].KickAngle = [self.dkick, 0.00]
+
+        #self.opt = at.linopt(self.lattice, refpts= self.BPM_indexes), get_chrom=True)
+        #tune = self.opt[1]
+        #chrom = self.opt[2]
+        #tws = self.opt[3]  # optics functions
+
+        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.BPM_indexes)
+        s_pos = lindata['s_pos']
+        closed_orbit = lindata['closed_orbit']
+        closed_orbitx = lindata['closed_orbit'][:, 0]
+        closed_orbity = lindata['closed_orbit'][:, 1]
+
+
+
+
+        self.lattice[self.correctors_indexes[j]].KickAngle = [0, 0.00]
+        cy.append(closed_orbity)
+    #Cy = cy
+    Cy = np.squeeze(cy) / self.dkick
+
+    return Cy
+
+
+
+
+
+
 
 def getTheorOrm(idx=0,fname='twiss'):
      f = sdds.SDDS(0)
