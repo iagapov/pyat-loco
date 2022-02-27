@@ -61,13 +61,16 @@ class Loco:
             self.runCommand(command)
             
     def measureOrm(self,kickX, kickY, mode):
+        if self.engine == 'elegant':
+            for corName in self.corNames:
+                if self.verbose: print('measuring orm:',corName)
+                command = self.exec + ' measure_orm_x.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickX)
+                self.runCommand(command)
+                command = self.exec + ' measure_orm_y.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickY)
+                self.runCommand(command)
 
-        for corName in self.corNames:
-            if self.verbose: print('measuring orm:',corName)
-            command = self.exec + ' measure_orm_x.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickX)
-            self.runCommand(command)
-            command = self.exec + ' measure_orm_y.ele -macro=lattice=fodo,cor_name=' + corName + ',cor_var=' + str(kickY)
-            self.runCommand(command)
+
+
 
 # orbit respoonse matrix
 class ORM:
