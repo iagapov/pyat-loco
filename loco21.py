@@ -1,15 +1,11 @@
 #! /usr/bin/env python
 import sys, time, os
 try:
-    from sdds import *
+    import sdds
     from elegant import *
 except:
     print("Failed to import elegant utils; elegant engine will not work properly")
 from pylab import *
-
-import pandas as pd
-import csv
-
 
 try:
     import at
@@ -39,7 +35,7 @@ class Loco:
                 print(line.decode('UTF-8'))
         process.wait()
 
-    def ORM1(self):
+    def prepareTwiss(self):
         if self.engine == 'elegant':
             command = self.exec + ' twiss.ele -macro=lattice=fodo'
             self.runCommand(command)
@@ -47,10 +43,17 @@ class Loco:
             self.Cy = getOrm(fname='data/twiss.vrm')
 
         if self.engine == 'at':
+            print("preparing twiss ..")
+            self.opt = at.linopt(self.lattice, refpts=np.arange(1, len(self.lattice)), get_chrom=True)
+            tune = self.opt[1]
+            chrom = self.opt[2]
+            tws = self.opt[3]  # optics functions
+            print(f"Tunes={tune}")
+            print(f"Chrom={chrom}")
             print(f"calculating ORM ...")
             self.Cx = getOrm_AT_x(self)
             self.Cy = getOrm_AT_y(self)
-            print("finish ORM")
+            #print("finish ORM")
     
     def simulateMachine(self): # simulated errors, compute twiss etc.
         if self.engine == 'elegant':
@@ -240,15 +243,16 @@ def getOrm(fname):
 
 
 def getOrm_AT_x(self):
-
+    #from pylab import *
     cx = []
     elements = []
-    elements_Strength_correctors = []
-    correctors_s = []
+    for j in range(len(self.correctors_indexes)):
 
-    for j in range(len(self.indexes_correctors)):
+        # print('+')
+        self.lattice[self.correctors_indexes[j]].KickAngle = [self.dkick, 0.00]
 
-        self.lattice[self.indexes_correctors[j]].KickAngle = [self.dkick, 0.0]
+        #elements.append(self.lattice[self.correctors_indexes[j]])
+
         lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.BPM_indexes)
         s_pos = lindata['s_pos']
         closed_orbit = lindata['closed_orbit']
@@ -256,232 +260,49 @@ def getOrm_AT_x(self):
         closed_orbity = lindata['closed_orbit'][:, 1]
         cx.append(closed_orbitx)
         indx = np.argwhere(cx == closed_orbitx)
+        file = open("orm_x_CXY_" + str(indx) + ".txt", "w")
+        # for k in range(len(elements)):
+        str1 = repr(self.lattice[self.correctors_indexes[j]].KickAngle)
+        file.write(str1)
+        file.close()
 
-        # for k in self.indexes:
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes)
-        s_pos = lindata['s_pos']
-        closed_orbit = lindata['closed_orbit']
-        closed_orbitx = lindata['closed_orbit'][:, 0]
-        closed_orbity = lindata['closed_orbit'][:, 1]
-        betax = lindata['beta'][:, 0]
-        betay = lindata['beta'][:, 1]
-        dx = lindata['dispersion'][:, 0]
-        dy = lindata['dispersion'][:, 1]
+        self.lattice[self.correctors_indexes[j]].KickAngle = [0, 0.00]
 
-        str1 = str(s_pos)[1:-1]
-        str2 = str(betax)[1:-1]
-        str3 = str(betay)[1:-1]
-        str4 = str(dx)[1:-1]
-        str5 = str(dy)[1:-1]
-        str6 = str(closed_orbitx)[1:-1]
-        str7 = str(closed_orbity)[1:-1]
-        # str8 = str(elements_type)[1:-1]
-        # str9 = str(elements_Strength)[1:-1]
-
-        elements_Strength = []
-        elements_type = []
-        i = 0
-
-        while (i < len(self.indexes)):
-            if (self.lattice[i].FamName == 'QF' or self.lattice[i].FamName == 'QD'):
-                elements_strength = self.lattice[i].K
-                elements_Strength.append(elements_strength)
-                element_type = self.lattice[i].FamName
-                elements_type.append(element_type)
-
-                i += 1
-            else:
-                elements_strength = 0
-                elements_Strength.append(elements_strength)
-                element_type = self.lattice[i].FamName
-                elements_type.append(element_type)
-                i += 1
-
-        # for k in self.indexes:
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes_correctors)
-        s_pos_c = lindata['s_pos']
-        closed_orbit_c = lindata['closed_orbit']
-        closed_orbitx_c = lindata['closed_orbit'][:, 0]
-        closed_orbity_c = lindata['closed_orbit'][:, 1]
-        betax_c = lindata['beta'][:, 0]
-        betay_c = lindata['beta'][:, 1]
-        dx_c = lindata['dispersion'][:, 0]
-        dy_c = lindata['dispersion'][:, 1]
-
-
-
-
-        elements_Strength_c = []
-        elements_type_c = []
-        for k in self.BPM_indexes:
-            #elements_strength = self.lattice[k].KickAngle[0]
-            elements_strength = 0
-            elements_Strength_c.append(elements_strength)
-            elements_Type = self.lattice[k].FamName
-            elements_type_c.append(elements_Type)
-
-        elements_Strength_c = []
-        for k in self.indexes_correctors:
-            elements_strength = self.lattice[k].KickAngle[0]
-            elements_Strength_c.append(elements_strength)
-
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes_correctors)
-        s_pos_c = lindata['s_pos']
-        closed_orbit_c = lindata['closed_orbit']
-        closed_orbitx_c = lindata['closed_orbit'][:, 0]
-        closed_orbity_c = lindata['closed_orbit'][:, 1]
-
-
-
-        self.lattice[self.indexes_correctors[j]].KickAngle = [0, 0.00]
 
     Cx = np.squeeze(cx) / self.dkick
+
+
 
     return Cx
 
 
 
+
 def getOrm_AT_y(self):
+    #from pylab import *
     cy = []
-    elements = []
-    elements_Strength_correctors = []
-    correctors_s = []
+    for j in range(len(self.correctors_indexes)):
 
-    for j in range(len(self.indexes_correctors)):
+        # print('+')
+        self.lattice[self.correctors_indexes[j]].KickAngle = [self.dkick, 0.00]
 
-        self.lattice[self.indexes_correctors[j]].KickAngle = [0.0, self.dkick]
         lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.BPM_indexes)
         s_pos = lindata['s_pos']
         closed_orbit = lindata['closed_orbit']
         closed_orbitx = lindata['closed_orbit'][:, 0]
         closed_orbity = lindata['closed_orbit'][:, 1]
+
+        self.lattice[self.correctors_indexes[j]].KickAngle = [0, 0.00]
         cy.append(closed_orbity)
-        indx = np.argwhere(cy == closed_orbity)
-
-        fh = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_" + str(j) + ".csv", 'w', newline='')
-        csv_writer = csv.writer(fh)
-
-        # write one row with headers (using `writerow` without `s` at the end)
-        csv_writer.writerow(['s_pos', 'beta_x', 'beta_y', 'dx', 'dy', 'closed_orbitx', 'closed_orbity'])
-        fh.close()
-
-        fh2 = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_bpms_" + str(j) + ".csv", 'w',
-                   newline='')
-        csv_writer = csv.writer(fh2)
-
-        # write one row with headers (using `writerow` without `s` at the end)
-        csv_writer.writerow(['s_pos', 'beta_x', 'beta_y', 'dx', 'dy',
-                              'closed_orbitx',
-                              'closed_orbity'
-                                 , 'elements_type', 'elements_strength'])
-        fh2.close()
-
-        fh3 = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_Kick_" + str(j) + ".csv", 'w',
-                   newline='')
-        csv_writer = csv.writer(fh3)
-
-        # write one row with headers (using `writerow` without `s` at the end)
-        csv_writer.writerow(['s_pos', 'elements_strength', 'closed_orbitx',
-                             'closed_orbity'])
-        fh3.close()
-
-        # for k in self.indexes:
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes)
-        s_pos = lindata['s_pos']
-        closed_orbit = lindata['closed_orbit']
-        closed_orbitx = lindata['closed_orbit'][:, 0]
-        closed_orbity = lindata['closed_orbit'][:, 1]
-        betax = lindata['beta'][:, 0]
-        betay = lindata['beta'][:, 1]
-        dx = lindata['dispersion'][:, 0]
-        dy = lindata['dispersion'][:, 1]
-
-        str1 = str(s_pos)[1:-1]
-        str2 = str(betax)[1:-1]
-        str3 = str(betay)[1:-1]
-        str4 = str(dx)[1:-1]
-        str5 = str(dy)[1:-1]
-        str6 = str(closed_orbitx)[1:-1]
-        str7 = str(closed_orbity)[1:-1]
-        # str8 = str(elements_type)[1:-1]
-        # str9 = str(elements_Strength)[1:-1]
-
-        elements_Strength = []
-        elements_type = []
-        i = 0
-
-        while (i < len(self.indexes)):
-            if (self.lattice[i].FamName == 'QF' or self.lattice[i].FamName == 'QD'):
-                elements_strength = self.lattice[i].K
-                elements_Strength.append(elements_strength)
-                element_type = self.lattice[i].FamName
-                elements_type.append(element_type)
-
-                i += 1
-            else:
-                elements_strength = 0
-                elements_Strength.append(elements_strength)
-                element_type = self.lattice[i].FamName
-                elements_type.append(element_type)
-                i += 1
-
-        # for k in self.indexes:
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes_correctors)
-        s_pos_c = lindata['s_pos']
-        closed_orbit_c = lindata['closed_orbit']
-        closed_orbitx_c = lindata['closed_orbit'][:, 0]
-        closed_orbity_c = lindata['closed_orbit'][:, 1]
-        betax_c = lindata['beta'][:, 0]
-        betay_c = lindata['beta'][:, 1]
-        dx_c = lindata['dispersion'][:, 0]
-        dy_c = lindata['dispersion'][:, 1]
-
-        elements_Strength_c = []
-        elements_type_c = []
-        for k in self.BPM_indexes:
-            # elements_strength = self.lattice[k].KickAngle[0]
-            elements_strength = 0
-            elements_Strength_c.append(elements_strength)
-            elements_Type = self.lattice[k].FamName
-            elements_type_c.append(elements_Type)
-
-        elements_Strength_c = []
-        for k in self.indexes_correctors:
-            elements_strength = self.lattice[k].KickAngle[1]
-            elements_Strength_c.append(elements_strength)
-
-        lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes_correctors)
-        s_pos_c = lindata['s_pos']
-        closed_orbit_c = lindata['closed_orbit']
-        closed_orbitx_c = lindata['closed_orbit'][:, 0]
-        closed_orbity_c = lindata['closed_orbit'][:, 1]
-
-        dict = {'s_pos': s_pos, 'beta_x': betax, 'beta_y': betay, 'dx': dx, 'dy': dy, 'closed_orbitx': closed_orbitx,
-                'closed_orbity': closed_orbity
-            , 'elements_type': elements_type, 'elements_strength': elements_Strength}
-
-        df = pd.DataFrame(dict)
-        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_" + str(j) + ".csv")
-
-        dict2 = {'s_pos': s_pos_c, 'beta_x': betax_c, 'beta_y': betay_c, 'dx': dx_c, 'dy': dy_c,
-                 'closed_orbitx': closed_orbitx_c,
-                 'closed_orbity': closed_orbity_c
-            , 'elements_type': elements_type_c, 'elements_strength': elements_Strength_c}
-
-        df = pd.DataFrame(dict2)
-        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_bpms_" + str(j) + ".csv")
-
-        dict3 = {'s_pos': s_pos_c, 'elements_strength': elements_Strength_c, 'closed_orbitx': closed_orbitx_c,
-                 'closed_orbity': closed_orbity_c}
-
-        df = pd.DataFrame(dict3)
-        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_Y/orm_y_CXY_Kick_" + str(j) + ".csv")
-
-        self.lattice[self.indexes_correctors[j]].KickAngle = [0, 0.00]
-
+    #Cy = cy
     Cy = np.squeeze(cy) / self.dkick
 
     return Cy
+
+
+
+
+
 
 
 def getTheorOrm(idx=0,fname='twiss'):

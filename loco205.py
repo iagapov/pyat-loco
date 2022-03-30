@@ -240,7 +240,6 @@ def getOrm(fname):
 
 
 def getOrm_AT_x(self):
-
     cx = []
     elements = []
     elements_Strength_correctors = []
@@ -256,6 +255,37 @@ def getOrm_AT_x(self):
         closed_orbity = lindata['closed_orbit'][:, 1]
         cx.append(closed_orbitx)
         indx = np.argwhere(cx == closed_orbitx)
+       
+
+
+
+
+
+        fh = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_" + str(j) + ".csv", 'w', newline='')
+        csv_writer = csv.writer(fh)
+
+        # write one row with headers (using `writerow` without `s` at the end)
+        csv_writer.writerow(['s_pos', 'beta_x', 'beta_y', 'dx', 'dy', 'closed_orbitx', 'closed_orbity'])
+        fh.close()
+
+        fh2 = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_bpms_" + str(j) + ".csv", 'w', newline='')
+        csv_writer = csv.writer(fh2)
+
+        # write one row with headers (using `writerow` without `s` at the end)
+        csv_writer.writerow(['s_pos', 'beta_x', 'beta_y', 'dx', 'dy',
+                 'closed_orbitx',
+                 'closed_orbity'
+            , 'elements_type', 'elements_strength'])
+        fh2.close()
+
+        fh3 = open("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_Kick_" + str(j) + ".csv", 'w', newline='')
+        csv_writer = csv.writer(fh3)
+
+        # write one row with headers (using `writerow` without `s` at the end)
+        csv_writer.writerow(['s_pos',  'elements_strength',  'closed_orbitx',
+                'closed_orbity'])
+        fh3.close()
+
 
         # for k in self.indexes:
         lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.indexes)
@@ -331,7 +361,26 @@ def getOrm_AT_x(self):
         closed_orbitx_c = lindata['closed_orbit'][:, 0]
         closed_orbity_c = lindata['closed_orbit'][:, 1]
 
+        dict = {'s_pos': s_pos, 'beta_x': betax, 'beta_y': betay, 'dx': dx, 'dy': dy, 'closed_orbitx': closed_orbitx,
+                'closed_orbity': closed_orbity
+            , 'elements_type': elements_type, 'elements_strength': elements_Strength}
 
+        df = pd.DataFrame(dict)
+        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_" + str(j) + ".csv")
+
+        dict2 = {'s_pos': s_pos_c, 'beta_x': betax_c, 'beta_y': betay_c, 'dx': dx_c, 'dy': dy_c,
+                 'closed_orbitx': closed_orbitx_c,
+                 'closed_orbity': closed_orbity_c
+            , 'elements_type': elements_type_c, 'elements_strength': elements_Strength_c}
+
+        df = pd.DataFrame(dict2)
+        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_bpms_" + str(j) + ".csv")
+
+        dict3 = {'s_pos': s_pos_c, 'elements_strength':  elements_Strength_c, 'closed_orbitx': closed_orbitx_c,
+                'closed_orbity': closed_orbity_c}
+
+        df = pd.DataFrame(dict3)
+        df.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/orm_X/orm_x_CXY_Kick_" + str(j) + ".csv")
 
         self.lattice[self.indexes_correctors[j]].KickAngle = [0, 0.00]
 
@@ -349,7 +398,7 @@ def getOrm_AT_y(self):
 
     for j in range(len(self.indexes_correctors)):
 
-        self.lattice[self.indexes_correctors[j]].KickAngle = [0.0, self.dkick]
+        self.lattice[self.indexes_correctors[j]].KickAngle = [self.dkick, 0.0]
         lindata0, tune, chrom, lindata = self.lattice.linopt(get_chrom=True, refpts=self.BPM_indexes)
         s_pos = lindata['s_pos']
         closed_orbit = lindata['closed_orbit']

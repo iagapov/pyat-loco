@@ -24,7 +24,7 @@ def getTwiss(idx=0,fname='twiss'):
      return res
 
 
-def plotOptics(idx=0,fname='twiss', limits=None, showAlpha=False, plotTitle=""):
+def plotOptics(idx=0, fname='twiss', limits=None, showAlpha=False, plotTitle=""):
      x = sdds.SDDS(0)
      x.load(fname + '.twi')
      #print(x.columnName)
