@@ -1,0 +1,51 @@
+! to run: elegant check_correction.ele  -macro=lattice=fodo
+
+&global_settings
+    echo_namelists = 1,
+    log_file=data/out.log,
+&end
+
+&run_setup
+    lattice = "<lattice>.lte",
+    magnets = "data/<lattice>.mag",
+    p_central_mev = 6000.0,
+    use_beamline = RING,
+    default_order = 2,
+    echo_lattice=1,
+    parameters=data/%s.param,
+    correction_iterations = 10
+&end
+
+&load_parameters
+    filename_list = "data/check.param",
+		allow_missing_elements = 0,
+    change_defined_values = 0,
+&end
+
+&run_control &end
+
+
+&twiss_output
+  radiation_integrals=1,
+	filename = "data/%s.twi",
+	matched=1,
+	output_at_each_step=1,
+	compute_driving_terms=1,
+	higher_order_chromaticity=1,
+	higher_order_chromaticity_range = 2e-2,
+&end
+
+
+&closed_orbit
+        output = "data/%s.clo",
+        output_monitors_only=0,
+      	closed_orbit_accuracy = 1e-6,
+        closed_orbit_iterations = 100,
+        iteration_fraction = 0.7,
+        verbosity = 1,
+&end
+
+
+
+&bunched_beam &end
+&track &end

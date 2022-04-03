@@ -1,0 +1,63 @@
+! to run: elegant perturb.ele  -macro=lattice=fodo
+
+
+&global_settings
+    echo_namelists = 1,
+    log_file=data/out.log,
+&end
+
+&run_setup
+    lattice = "<lattice>.lte",
+    magnets = "data/<lattice>.mag",
+    p_central_mev = 6000.0,
+    use_beamline = RING,
+    default_order = 2,
+    echo_lattice=1,
+    parameters=data/%s.param,
+&end
+
+&run_control &end
+
+&error_control clear_error_settings=1 &end
+
+&error_element name=QF*, item=K1, element_type=*QUAD*, amplitude=72.e-3, cutoff=3, bind=0 &end
+&error_element name=QD*, item=K1, element_type=*QUAD*, amplitude=52.e-3, cutoff=3, bind=0 &end
+&error_element name=QF*, item=TILT, element_type=*QUAD*, amplitude=3.e-3, cutoff=3, bind=0 &end
+&error_element name=QD*, item=TILT, element_type=*QUAD*, amplitude=3.e-3, cutoff=3, bind=0 &end
+
+!&alter_elements name=QF, start_occurence=10, end_occurence=10, item=K1, value=1.5 &end
+!&alter_elements name=QD, start_occurence=15, end_occurence=15, item=K1, value=-1.9 &end
+!&alter_elements name=QF, start_occurence=7, end_occurence=7, item=K1, value=1.5 &end
+!&alter_elements name=QD, start_occurence=2, end_occurence=2, item=K1, value=-1.8 &end
+!&alter_elements name=QD, start_occurence=2, end_occurence=2, item=K1, value=-1.8 &end
+!&alter_elements name=QD, start_occurence=1, end_occurence=1, item=TILT, value=0.1 &end
+
+
+&coupled_twiss_output
+	filename = "data/%s.ctwi",
+	output_at_each_step=1,
+&end
+
+&twiss_output
+  radiation_integrals=1,
+	filename = "data/%s.twi",
+	matched=1,
+	output_at_each_step=1,
+	compute_driving_terms=1,
+	higher_order_chromaticity=1,
+	higher_order_chromaticity_range = 2e-2,
+&end
+
+
+&closed_orbit
+        output = data/%s.clo,
+        output_monitors_only=0,
+      	closed_orbit_accuracy = 1e-6,
+        closed_orbit_iterations = 100,
+        iteration_fraction = 0.7,
+        verbosity = 1,
+&end
+
+
+&bunched_beam &end
+&track &end
