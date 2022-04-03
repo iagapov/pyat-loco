@@ -28,7 +28,7 @@ def getBetaBeat(twiss, twiss_error):
     by = np.std((twiss_error.betay - twiss.betay) / twiss.betay)
     print("Simulated beta beat, x:" + str(bx * 100) + "%   y: " + str(by* 100) + "%")
 
-def make_plot(twiss):
+def make_plot(twiss, plot_name):
     from mpl_toolkits.axes_grid1 import host_subplot
     import matplotlib.pyplot as plt
 
@@ -56,10 +56,15 @@ def make_plot(twiss):
     par.yaxis.get_label().set_color(p3.get_color())
     leg.texts[2].set_color(p3.get_color())
 
+    plt.title(plot_name)
+
     plt.show()
 
 
-def getOptics(ring, refpts, optics, error):
+
+
+
+def getOptics(ring, refpts):
 
 
     elements_indexes = get_refpts(ring, refpts)
@@ -158,6 +163,75 @@ def ORM_y(dkick, ring):
     Cyx = np.squeeze(cyx) / dkick
 
     return Cyy, Cyx
+
+
+
+
+
+
+
+
+def ORM_x_q(dkick, ring):
+    cxx = []
+    cxy = []
+    correctors_indexes = get_refpts(ring, elements.Quadrupole)
+    bpm_indexes = get_refpts(ring, elements.Monitor)
+
+    for j in range(len(correctors_indexes)):
+        ring[correctors_indexes[j]].PolynomB[0] = dkick
+        lindata0, tune, chrom, lindata = ring.linopt(get_chrom=True, refpts=bpm_indexes)
+        closed_orbitx = lindata['closed_orbit'][:, 0]
+        closed_orbity = lindata['closed_orbit'][:, 2]
+
+        cxx.append(closed_orbitx)
+        cxy.append(closed_orbity)
+
+        ring[correctors_indexes[j]].PolynomB[0] = 0.00
+
+    Cxx = np.squeeze(cxx) / dkick
+    Cxy = np.squeeze(cxy) / dkick
+
+    return Cxx, Cxy
+
+
+def ORM_y_q(dkick, ring):
+    cyy = []
+    cyx = []
+    correctors_indexes = get_refpts(ring, elements.Quadrupole)
+    bpm_indexes = get_refpts(ring, elements.Monitor)
+
+    for j in range(len(correctors_indexes)):
+        ring[correctors_indexes[j]].PolynomB[1] = dkick
+        lindata0, tune, chrom, lindata = ring.linopt(get_chrom=True, refpts=bpm_indexes)
+        closed_orbitx = lindata['closed_orbit'][:, 0]
+        closed_orbity = lindata['closed_orbit'][:, 2]
+
+        cyy.append(closed_orbity)
+        cyx.append(closed_orbitx)
+
+        ring[correctors_indexes[j]].PolynomB[1] = 0.00
+
+    Cyy = np.squeeze(cyy) / dkick
+    Cyx = np.squeeze(cyx) / dkick
+
+    return Cyy, Cyx
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def ORM_x_error(dkick, ring):
@@ -284,12 +358,12 @@ def simulateError(lattice, errorQF, errorQD):
         elif (lattice[quad_indexes[i]].FamName == 'QD'):
             lattice[quad_indexes[i]].K *= (1 + errorQD * random())
 
-            i += 1
+        i += 1
 
-        elif (lattice[quad_indexes[i]].FamName == 'QS'):
-            lattice[quad_indexes[i]].K = 0.0
+        #elif (lattice[quad_indexes[i]].FamName == 'QS'):
+        #    lattice[quad_indexes[i]].K = 0.0
 
-            i += 1
+        #    i += 1
 
     for j in quad_indexes:
         quad_strength_err = lattice[j].K
@@ -314,7 +388,7 @@ def simulateError(lattice, errorQF, errorQD):
 
 
 
-def simulateError_tilt(lattice, errorQF, errorQD,  tiltQF, tiltQD, tiltQS ):
+def simulateError_tilt(lattice, errorQF, errorQD, tiltQF, tiltQD):
 
     ## Insert the errors
 
@@ -345,14 +419,14 @@ def simulateError_tilt(lattice, errorQF, errorQD,  tiltQF, tiltQD, tiltQS ):
             lattice[quad_indexes[i]].K *= (1 + errorQD * random())
             at.tilt_elem(lattice[quad_indexes[i]], tiltQD, relative=False)
 
-            i += 1
+        i += 1
 
-        elif (lattice[quad_indexes[i]].FamName == 'QS'):
-            lattice[quad_indexes[i]].K = 0.0
-            at.tilt_elem(lattice[quad_indexes[i]], tiltQS, relative=False)
+       # elif (lattice[quad_indexes[i]].FamName == 'QS'):
+       #     lattice[quad_indexes[i]].K *= (1 + errorQS * random())
+       #     at.tilt_elem(lattice[quad_indexes[i]], tiltQS, relative=False)
 
 
-            i += 1
+        #    i += 1
 
     for j in quad_indexes:
         quad_strength_err = lattice[j].K
@@ -376,9 +450,6 @@ def simulateError_tilt(lattice, errorQF, errorQD,  tiltQF, tiltQD, tiltQS ):
     return quads
 
 
-
-
-
 def getQuadFamilies(Quads):
 
     n_list = len(Quads.s_pos)
@@ -399,11 +470,12 @@ def computeOpticsD(ring, qname, i, dk, quad_vals):
     bpm_indexes = get_refpts(ring, elements.Monitor)
     quad_indexes = get_refpts(ring, qname)
 
-    ring[quad_indexes[i]].K =  quad_vals[qname,i] + dk
+    ring[quad_indexes[i]].K = quad_vals[qname,i] + dk
 
-    qxx, qxy= ORM_x(0.0001, ring)
-    qyy, qyx= ORM_y(0.0001, ring)
+    qxx, qxy = ORM_x(dk, ring)
+    qyy, qyx = ORM_y(dk, ring)
 
     ring[quad_indexes[i]].K = quad_vals[qname,i]
+
 
     return  qxx, qxy, qyy, qyx
