@@ -9,6 +9,220 @@ from pylab import *
 import pandas as pd
 import csv
 from random import random
+def defineMatrices( Nm, C0x, C0y, C0xy, C0yx, Cxx_err, Cyy_err, Cxy_err, Cyx_err, dCx, dCy, dCxy,dCyx ):
+    Nk = len(dCx)  # number of free parameters
+    Nm = 40  # number of measurements
+    print('NK:', Nk)
+    print('Nm:', Nm)
+
+    Ax = np.zeros([Nk, Nk])
+    Ay = np.zeros([Nk, Nk])
+    Axy = np.zeros([Nk, Nk])
+    Ayx = np.zeros([Nk, Nk])
+
+    A = np.zeros([4 * Nk, Nk])
+
+    ##
+
+    Bx = np.zeros([Nk, 1])
+    By = np.zeros([Nk, 1])
+    Bxy = np.zeros([Nk, 1])
+    Byx = np.zeros([Nk, 1])
+
+    B = np.zeros([4 * Nk, 1])
+
+    ##
+
+    Dx = (Cxx_err[0:Nm, :] - C0x[0:Nm, :])  ### dk ?
+    Dy = (Cyy_err[0:Nm, :] - C0y[0:Nm, :])
+    Dxy = (Cxy_err[0:Nm, :] - C0xy[0:Nm, :])
+    Dyx = (Cyx_err[0:Nm, :] - C0yx[0:Nm, :])
+
+    ##
+
+    for i in range(Nk):  ## i represents each quad
+        # print('done A:', 100.* i ,'%')
+        for j in range(Nk):
+            Ax[i, j] = np.sum(np.dot(dCx[i], dCx[j].T))
+            Ay[i, j] = np.sum(np.dot(dCy[i], dCy[j].T))
+            Axy[i, j] = np.sum(np.dot(dCxy[i], dCxy[j].T))
+            Ayx[i, j] = np.sum(np.dot(dCyx[i], dCyx[j].T))
+        A[i, :] = Ax[i, :]
+        A[i + Nk, :] = Ay[i, :]
+        A[i + 2 * Nk, :] = Axy[i, :]
+        A[i + 3 * Nk, :] = Ayx[i, :]
+
+    ##
+
+    for i in range(Nk):
+        Bx[i] = np.sum(np.dot(dCx[i], Dx.T))
+        By[i] = np.sum(np.dot(dCy[i], Dy.T))
+        Bxy[i] = np.sum(np.dot(dCxy[i], Dxy.T))
+        Byx[i] = np.sum(np.dot(dCyx[i], Dyx.T))
+        B[i] = Bx[i]
+        B[i + Nk] = By[i]
+        B[i + 2 * Nk] = Bxy[i]
+        B[i + 3 * Nk] = Byx[i]
+
+    return A, B
+
+def getInverse(A, B,Nk, sCut):
+
+    u, s, v = np.linalg.svd(A, full_matrices=True)
+
+    smat = 0.0 * A
+    si = s ** -1
+    n_sv = sCut
+    si[n_sv:] *= 0.0
+
+    print("number of singular values {}".format(len(si)))
+    smat[:Nk, :Nk] = np.diag(si)
+
+    print('A' + str(A.shape), 'B' + str(B.shape), 'U' + str(u.shape), 'smat' + str(smat.shape), 'v' + str(v.shape))
+
+    plt.plot(np.log(s), 'd--')
+    plt.title('singular value')
+    plt.show()
+
+    plt.plot(si, 'd--')
+    plt.title('singular value inverse')
+    plt.show()
+
+    Ai = np.dot(v.transpose(), np.dot(smat.transpose(), u.transpose()))
+
+    ###
+    r = (np.dot(Ai, B)).reshape(-1)
+    plot(r, 'd')
+    plt.show()
+
+    # error
+    e = np.dot(A, r).reshape(-1) - B.reshape(-1)
+    plt.plot(e)
+    plt.show()
+    plt.plot(B)
+    plt.show()
+
+    return Ai, r, e
+
+def compare_orm(Cxy, Cxy_err, Cxy_corr, no):
+    # plot the 3 sets
+    plt.plot(Cxy[no], label='C')
+    plt.plot(Cxy_err[no], label='C_err')
+    plt.plot(Cxy_corr[no], label='C_corr')
+
+    # call with no parameters
+    plt.legend()
+
+    plt.show()
+
+
+
+
+def generatingQuadsResponse(ring, Cxx, Cyy,Cxy, Cyx ):
+    # %%time
+
+    quads_info = quad_info(ring)
+    quad_dict, quad_vals = getQuadFamilies(quads_info)
+    quads = [k for k in quad_dict.keys()]
+    quad_names = quads
+    dk = 0.0001
+    qxx = []
+    qxy = []
+    qyy = []
+    qyx = []
+    quad_names = quads
+    for qname in quad_names:
+        print('generating response to {}, n={}'.format(qname, quad_dict[qname]))
+        nq = quad_dict[qname] + 1
+        for i in range(0, nq):
+            Qxx, Qxy, Qyy, Qyx = computeOpticsD(ring, qname, i, dk, quad_vals)
+            qxx.append(Qxx)
+            qxy.append(Qxy)
+            qyy.append(Qyy)
+            qyx.append(Qyx)
+
+    C0x = Cxx
+    C0y = Cyy
+    C0xy = Cxy
+    C0yx = Cyx
+
+    dCx = []
+    dCy = []
+    dCxy = []
+    dCyx = []
+    quad_names = quads
+    for qname in quad_names:
+        # nquad = quad_dict[qname]
+        print('loading response to:', qname)
+    i = 0
+    while (i < len(qxx)):
+        C1x = qxx[i]
+        C1y = qyy[i]
+        C1xy = qxy[i]
+        C1yx = qyx[i]
+        dcxx = ((C1x - C0x) / dk)
+        dcyy = ((C1y - C0y) / dk)
+
+        dCxy.append((C1xy - C0xy) / dk)
+        dCyx.append((C1yx - C0yx) / dk)
+
+        dCx.append(dcxx)
+        dCy.append(dcyy)
+
+        i += 1
+
+    return C0x, C0y, C0xy, C0yx, dCx, dCy, dCxy,dCyx
+
+
+def setCorrection(ring, quads_info_error,quad_names, r , quads_info,n_list):
+
+    quad_dict, quad_vals = getQuadFamilies(quads_info_error)
+    n_list = len(quads_info_error.s_pos)
+    # print(n_list)
+
+    quad_names = quad_names
+    iq = 0
+    frac = 1.0
+    cor_dict = {}
+    for qname in quad_names:
+        nquad = quad_dict[qname]
+        # print(qname, quad_dict[qname])
+        for i in range(0, nquad):
+            cor_dict[qname, i + 1] = -r[iq] * frac
+            iq += 1
+    print("define correction : Done")
+
+    DK = []
+    for idx in range(n_list):
+        qname_ = quads_info.elements_name[idx]  # ElementName
+
+        if qname_ == 'QF':
+            occ = quads_info_error.occ[idx]
+            dk = cor_dict['QF', occ]
+            DK.append(dk)
+
+        if qname_ == 'QD':
+            occ = quads_info_error.occ[idx]
+            dk = cor_dict['QD', occ]
+            DK.append(dk)
+
+        if qname_ == 'QS':
+            occ = quads_info_error.occ[idx]
+            dk = cor_dict['QS', occ]
+            DK.append(dk)
+
+    quads_indexes = get_refpts(ring, elements.Quadrupole)
+    i = 0
+    while (i < len(quads_indexes)):
+        ring[quads_indexes[i]].K += DK[i]
+        i += 1
+
+    print("set correction : Done")
+
+def plotORM(orm):
+    plt.figure()
+    imshow(orm)
+    plt.show()
 
 
 def getBetaBeat(twiss, twiss_error):
@@ -44,7 +258,7 @@ def make_plot(twiss, plot_name):
     p1, = host.plot(twiss.s_pos, twiss.betax, label=r'$\beta_x$')
     p2, = host.plot(twiss.s_pos, twiss.betay, label=r'$\beta_y$')
     p3, = par.plot(twiss.s_pos, twiss.dx, label=r'$\eta_x$')
-
+    p4, = par.plot(twiss.s_pos, twiss.dy, label=r'$\eta_y$')
     leg = plt.legend()
 
     host.yaxis.get_label().set_color(p1.get_color())
@@ -71,13 +285,13 @@ def getOptics(ring, refpts):
 
     lindata0, tune, chrom, lindata = ring.linopt(get_chrom=True, refpts=elements_indexes)
     closed_orbitx = lindata['closed_orbit'][:, 0]
-    closed_orbity = lindata['closed_orbit'][:, 1]
+    closed_orbity = lindata['closed_orbit'][:, 2]
     s_pos = lindata['s_pos']
     closed_orbit = lindata['closed_orbit']
     beta_x= lindata['beta'][:, 0]
     beta_y= lindata['beta'][:, 1]
     dx = lindata['dispersion'][:, 0]
-    dy = lindata['dispersion'][:, 1]
+    dy = lindata['dispersion'][:, 2]
 
     print("preparing twiss ..")
     print(f"Tunes={ring.get_tune()}")
@@ -324,7 +538,42 @@ def quad_info(lattice):
     quads = pd.DataFrame(quad)
     quads.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/quad_info.csv")
 
-    print('Done...')
+    #print('Done...')
+
+    return quads
+
+
+
+
+
+def quad_info_qs(lattice):
+
+    Quad_strength = []
+    Quad_strength_err = []
+    elements_name_q = []
+
+    quad_indexes = get_refpts(lattice, 'QS')
+
+    for i in quad_indexes:
+        quad_strength = lattice[i].K
+        Quad_strength.append(quad_strength)
+        element_name = lattice[i].FamName
+        elements_name_q.append(element_name)
+
+    elements_indexes = get_refpts(lattice, 'QS')
+    opt = at.linopt(lattice, refpts=elements_indexes, get_chrom=True)
+    s_pos_q = opt[3].s_pos
+
+    output = [elements_name_q[:e].count(v) for e, v in enumerate(elements_name_q, 0)]
+    output1 = [elements_name_q[:e].count(v) for e, v in enumerate(elements_name_q, 1)]
+
+
+    quad = {'s_pos': s_pos_q, 'Quad_strength': Quad_strength,
+            'elements_name': elements_name_q, 'occ': output, 'occ1':output1}
+    quads = pd.DataFrame(quad)
+    quads.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/quad_info.csv")
+
+    #print('Done...')
 
     return quads
 
@@ -382,7 +631,7 @@ def simulateError(lattice, errorQF, errorQD):
     quads.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/quad_info_error.csv")
 
 
-    print('Done...')
+   # print('Done...')
 
     return quads
 
@@ -445,7 +694,70 @@ def simulateError_tilt(lattice, errorQF, errorQD, tiltQF, tiltQD):
     quads.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/quad_info_error.csv")
 
 
-    print('Done...')
+    #print('Done...')
+
+    return quads
+
+def simulateError_tilt_qs(lattice, errorQF, errorQD, errorQS, tiltQF, tiltQD):
+
+    ## Insert the errors
+
+    print('simulating perturbed machine...')
+
+    Quad_strength = []
+    Quad_strength_err = []
+    elements_name_q = []
+
+    quad_indexes = get_refpts(lattice, 'QS')
+
+    for i in quad_indexes:
+        quad_strength = lattice[i].K
+        Quad_strength.append(quad_strength)
+        element_name = lattice[i].FamName
+        elements_name_q.append(element_name)
+
+    i = 0
+    while (i < len(quad_indexes)):
+
+        if (lattice[quad_indexes[i]].FamName == 'QF'):
+            lattice[quad_indexes[i]].K *= (1 + errorQF * random())
+            at.tilt_elem(lattice[quad_indexes[i]], tiltQF, relative=False)
+
+            i += 1
+
+        elif (lattice[quad_indexes[i]].FamName == 'QD'):
+            lattice[quad_indexes[i]].K *= (1 + errorQD * random())
+            at.tilt_elem(lattice[quad_indexes[i]], tiltQD, relative=False)
+
+            i += 1
+
+        elif (lattice[quad_indexes[i]].FamName == 'QS'):
+            lattice[quad_indexes[i]].K += (errorQS * random())
+            #at.tilt_elem(lattice[quad_indexes[i]], tiltQS, relative=False)
+
+            i += 1
+
+
+
+
+    for j in quad_indexes:
+        quad_strength_err = lattice[j].K
+        Quad_strength_err.append(quad_strength_err)
+
+    elements_indexes = get_refpts(lattice, 'QS')
+    opt = at.linopt(lattice, refpts=elements_indexes, get_chrom=True)
+    s_pos_q = opt[3].s_pos
+
+    output1 = [elements_name_q[:e].count(v) for e, v in enumerate(elements_name_q, 1)]
+
+
+    quad = {'s_pos': s_pos_q, 'Quad_strength': Quad_strength_err,
+            'elements_name': elements_name_q, 'occ': output1}
+    quads = pd.DataFrame(quad)
+    quads.to_csv("C:/Users/musa/pyat-loco-1/fodo_loco/mydata/quad_info_error.csv")
+
+
+    #print('Done...')
 
     return quads
 
@@ -476,6 +788,23 @@ def computeOpticsD(ring, qname, i, dk, quad_vals):
     qyy, qyx = ORM_y(dk, ring)
 
     ring[quad_indexes[i]].K = quad_vals[qname,i]
+
+
+    return  qxx, qxy, qyy, qyx
+
+
+def computeOpticsQS(ring, qname, i, dk, qs_indexes):
+
+    bpm_indexes = get_refpts(ring, elements.Monitor)
+    print('before '+str(ring[qs_indexes[i]].K))
+    Qs_old_strength = ring[qs_indexes[i]].K
+    ring[qs_indexes[i]].K = ring[qs_indexes[i]].K + dk
+    print('after '+str(ring[qs_indexes[i]].K))
+    qxx, qxy = ORM_x(dk, ring)
+    qyy, qyx = ORM_y(dk, ring)
+
+    ring[qs_indexes[i]].K = Qs_old_strength
+    print('final qs ' +str(ring[qs_indexes[i]].K))
 
 
     return  qxx, qxy, qyy, qyx
