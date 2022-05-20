@@ -15,12 +15,11 @@ from copy import deepcopy
 B1H = elements.Bend('B1H', 1.3, 0.314159265358979323, 0, EntranceAngle=0, ExitAngle=0)
 QF = elements.Quadrupole('QF', 0.1, 1.7)
 QD = elements.Quadrupole('QD', 0.1, -2.1)
-#QS = elements.Quadrupole('QS', 0.1, 0.0, R1= 0.70710678, R2= 0.70710678)
 QS = elements.Quadrupole('QS', 0.1, 0.0)
 at.tilt_elem(QS,0.7853981633974483)
 #QS = elements.Quadrupole('QS', 0.1, 0.0, R1=array([[ 0.70710678,  0.        ,  0.70710678,  0.        ,  0.        , 0.        ], [ 0.        ,  0.70710678,  0.        ,  0.70710678,  0.        , 0.        ], [-0.70710678,  0.        ,  0.70710678,  0.        ,  0.        , 0.        ], [ 0.        , -0.70710678,  0.        ,  0.70710678,  0.        , 0.        ], [ 0.        ,  0.        ,  0.        ,  0.        ,  1.        , 0.        ], [ 0.        ,  0.        ,  0.        ,  0.        ,  0.        , 1.        ]]), R2=array([[ 0.70710678,  0.        , -0.70710678,  0.        ,  0.        , 0.        ], [ 0.        ,  0.70710678,  0.        , -0.70710678,  0.        , 0.        ], [ 0.70710678,  0.        ,  0.70710678,  0.        ,  0.        , 0.        ], [ 0.        ,  0.70710678,  0.        ,  0.70710678,  0.        , 0.        ], [ 0.        ,  0.        ,  0.        ,  0.        ,  1.        , 0.        ], [ 0.        ,  0.        ,  0.        ,  0.        ,  0.        , 1.        ]]))
 SF = elements.Sextupole('SF', 0.01, 50.0)
-BPM = elements.Monitor('BPM')
+BPM = elements.Monitor('BPM', K = 0.0)
 DD = elements.Drift('DD', 0.1)
 m0 = elements.Marker('M0')
 
@@ -140,5 +139,8 @@ ring3 = [deepcopy(x) for x in ring_SF_off]
 
 
 
-ring4_ = [B1H, CXY01, DD, BPM, QF, QS, DD, B1H, B1H, CXY02, DD, BPM, QD, DD, B1H, m0]
+ring4_ = [B1H, CXY01, DD, BPM, QF, DD, B1H, B1H, CXY02, DD, BPM, QD, DD, B1H, m0]
 ring4 = [deepcopy(x) for x in ring4_]
+
+ring5_ = [B1H, CXY01, DD, BPM, QF,QS, DD, B1H, B1H, CXY02, DD, BPM, QD, DD, B1H]
+ring5 = [deepcopy(x) for x in ring5_]
